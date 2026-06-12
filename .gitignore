@@ -20,11 +20,14 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# Datos y volúmenes locales
+# Datos y volúmenes locales (la config de infra/supabase/volumes/ SÍ se versiona)
 *.db
 *.sqlite
-volumes/
 .data/
+infra/supabase/volumes/db/data/
+infra/supabase/volumes/storage/
+infra/supabase/volumes/snippets/*
+!infra/supabase/volumes/snippets/.gitkeep
 
 # IDE / SO
 .DS_Store

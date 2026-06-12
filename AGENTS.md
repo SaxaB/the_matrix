@@ -43,4 +43,5 @@ Documentación de contexto de ambos ya versionada en `docs/contexto/`.
 
 ## Estado
 
-- 2026-06-11: bootstrap del repo (docs + plan). Siguiente: F0 (esqueleto monorepo + Docker Compose).
+- 2026-06-11: bootstrap del repo (docs + plan).
+- 2026-06-11: **F0 construido**: esqueleto del monorepo (§12) + `docker-compose.yml` con Supabase self-host (versiones fijadas, ver `infra/supabase/README.md`) + cloudflared bajo perfil `tunnel`. Compose validado en sintaxis; **pendiente smoke test real** (`docker compose up`) en local o en el EQR6. Siguiente: F1 (esquema `packages/db` + ETLs de FinAI).

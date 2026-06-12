@@ -17,6 +17,17 @@ como clientes y Telegram como canal de mensajería.
 | `docs/contexto/` | Documentación de los dos proyectos fuente (FinAI, financial-freedom) |
 | `docs/referencias/` | Arquitectura de referencia y material de apoyo |
 
+## Arranque rápido (F0)
+
+```sh
+cp .env.example .env
+sh infra/supabase/generate-keys.sh   # pegar la salida en .env
+docker compose up -d                 # Postgres + Auth + API + Realtime + Studio
+```
+
+Studio queda en `http://localhost:8000`. Detalles en `infra/supabase/README.md`.
+
 ## Estado
 
-Bootstrap (pre-F0). Ver fases en `docs/PLAN-CONSTRUCCION.md`.
+F0 construido (stack Supabase self-host + esqueleto monorepo). Ver fases en
+`docs/PLAN-CONSTRUCCION.md`.
