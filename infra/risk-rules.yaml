@@ -1,0 +1,27 @@
+# Reglas del risk_gate (diseño §9bis.2): defensa en código, no confianza en el LLM.
+# Config, no código: ajustar límites aquí; la lógica vive en saxa.domains.finance.risk.
+
+# Sizing
+max_position_pct: 8.0            # tope duro de % de cartera por posición
+max_loss_pct_portfolio: 1.0      # pérdida máx. aceptable si salta el SL (% del NAV)
+
+# Sizing condicionado por riesgo del activo (finai_risk_score 5-95)
+position_pct_by_risk:
+  - {max_risk_score: 35, max_position_pct: 8.0}    # bajo estrés
+  - {max_risk_score: 60, max_position_pct: 5.0}
+  - {max_risk_score: 95, max_position_pct: 3.0}    # alto estrés
+
+# Estructura del plan
+require_scaled_entries: true     # >= 2 entradas con pesos que suman 1.0
+min_take_profits: 1
+weight_sum_tolerance: 0.001
+
+# R múltiple
+min_r_multiple: 1.5              # rechaza planes con recompensa/riesgo pobre
+r_tolerance: 0.15                # divergencia admitida entre R declarado y calculado
+
+# Límites de cartera
+max_open_positions: 12
+max_exposure_per_ticker_pct: 10.0
+max_exposure_per_sector_pct: 35.0
+max_aggregate_open_risk_pct: 6.0   # suma de pérdidas potenciales a SL de todo lo abierto

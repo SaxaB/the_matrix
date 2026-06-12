@@ -1,0 +1,27 @@
+{
+  "name": "@matrix/etl",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ETL de datos de mercado (SEC EDGAR, Yahoo Finance, riesgo FinAI) → schema market",
+  "type": "module",
+  "exports": {
+    "./lib/*": "./src/lib/*.ts",
+    "./db": "./src/db.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "etl:preload": "tsx src/jobs/preload-indices.ts",
+    "etl:sec": "tsx src/jobs/sec-edgar-ingest.ts",
+    "etl:yahoo": "tsx src/jobs/yahoo-ingest.ts",
+    "etl:risk": "tsx src/jobs/ticker-risk-scores.ts"
+  },
+  "dependencies": {
+    "@matrix/db": "workspace:*",
+    "@supabase/supabase-js": "^2.103.0",
+    "yahoo-finance2": "^3.14.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  }
+}

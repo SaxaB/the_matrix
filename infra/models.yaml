@@ -1,0 +1,84 @@
+# Router de modelos (diseño §5ter.1): tarea -> modelo. Config, no código.
+# Cambiar de proveedor (p. ej. a Ollama) = editar provider/model de una fila.
+# El runtime resuelve la tarea con saxa.router.ModelRouter.
+#
+# cost_*: USD por millón de tokens (para atribución de coste del budget;
+# actualizar si cambia el pricing del proveedor).
+
+defaults:
+  provider: anthropic
+  temperature: 0.3
+  max_tokens: 1024
+  # Presupuesto por defecto por ejecución de tarea (USD); ver §5ter.2
+  cost_budget_usd: 0.50
+
+models:
+  # Catálogo de modelos disponibles (referenciados por las tareas)
+  haiku:
+    provider: anthropic
+    model: claude-haiku-4-5-20251001
+    cost_input_per_mtok: 1.00
+    cost_output_per_mtok: 5.00
+  sonnet:
+    provider: anthropic
+    model: claude-sonnet-4-6
+    cost_input_per_mtok: 3.00
+    cost_output_per_mtok: 15.00
+  opus:
+    provider: anthropic
+    model: claude-opus-4-8
+    cost_input_per_mtok: 10.00
+    cost_output_per_mtok: 40.00
+
+tasks:
+  # Clasificación de intención del gateway (alto volumen, decisión simple)
+  classify_intent:
+    model: haiku
+    max_tokens: 256
+    temperature: 0.0
+    cost_budget_usd: 0.02
+
+  # Resumen de fuentes (Reddit/X/Cárpatos): volumen, no es la cara visible
+  summarize_source:
+    model: haiku
+    max_tokens: 1024
+    cost_budget_usd: 0.10
+
+  # Scoring del radar semanal
+  radar_scoring:
+    model: sonnet
+    max_tokens: 2048
+    cost_budget_usd: 0.30
+
+  # Scraping estructurado (§7bis): extracción con schema
+  scrape_extract:
+    model: haiku
+    max_tokens: 2048
+    cost_budget_usd: 0.05
+
+  # Respuesta de chat (ticker, técnico, posición): visible pero corta
+  chat_reply:
+    model: sonnet
+    max_tokens: 2048
+    temperature: 0.3
+    cost_budget_usd: 0.25
+    fallback: haiku
+
+  # Síntesis del briefing: lo lee el grupo, calidad de redacción
+  briefing_synthesis:
+    model: sonnet
+    max_tokens: 4096
+    temperature: 0.4
+    cost_budget_usd: 0.50
+    fallback: haiku
+
+  # Nodo de decisión (LangGraph, F5+): consecuencias económicas
+  decision_node:
+    model: sonnet
+    max_tokens: 4096
+    temperature: 0.2
+    cost_budget_usd: 0.75
+    fallback: opus
+
+# Tope diario agregado (USD): al superarlo, el agente se pausa y avisa (§5ter.2)
+daily_budget_usd: 5.00

@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Matrix",
+    "slug": "the-matrix",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "thematrix",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.saxab.thematrix"
+    },
+    "android": {
+      "package": "com.saxab.thematrix",
+      "edgeToEdgeEnabled": true
+    },
+    "extra": {}
+  }
+}

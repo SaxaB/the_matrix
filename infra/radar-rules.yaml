@@ -1,0 +1,44 @@
+# Criterios del radar semanal (diseño §9bis.3): config, no código.
+# La lógica vive en saxa.domains.finance.radar; pesos y umbrales aquí.
+
+# Filtros de entrada (descartan antes de puntuar)
+filters:
+  min_market_cap: 2000000000        # 2B USD: fuera microcaps
+  min_avg_volume: 500000
+  min_bars: 120                     # historia mínima de velas EOD
+  max_risk_score: 85                # descarta estrés extremo
+
+# Pesos de los componentes (suman 1.0)
+weights:
+  technical: 0.40
+  fundamental: 0.30
+  risk: 0.20
+  narrative: 0.10                   # señales sociales (si hay digest reciente)
+
+# Componente técnico (sobre yahoo_eod_bars)
+technical:
+  momentum_days: 60                 # retorno a 60 sesiones
+  momentum_cap_pct: 40              # se normaliza contra este tope
+  rsi_sweet_low: 45                 # zona RSI preferida (ni sobrevendido ni euforia)
+  rsi_sweet_high: 65
+  max_pct_from_52w_high: 25         # castigo si está a más de esto del máximo
+
+# Componente fundamental (sobre sec_edgar_metrics, us-gaap)
+fundamental:
+  revenue_concept: "Revenues"
+  revenue_fallback_concepts: ["RevenueFromContractWithCustomerExcludingAssessedTax"]
+  income_concept: "NetIncomeLoss"
+  min_revenue_growth_pct: -5        # crecimiento YoY mínimo para puntuar > 0
+  growth_cap_pct: 50                # normalización
+
+# Salida
+output:
+  top_n: 10
+  # Trade plan preliminar por candidato (§9bis.2): entradas escaladas bajo el
+  # último cierre, SL bajo el mínimo reciente, TP a múltiplo R mínimo viable
+  plan:
+    entry_discounts_pct: [1.0, 4.0]   # 2 tramos bajo el último cierre
+    stop_lookback_days: 20            # SL bajo el mínimo de N sesiones
+    stop_buffer_pct: 2.0
+    target_r: 2.0                     # TP colocado para R objetivo
+    position_pct_target: 3.0

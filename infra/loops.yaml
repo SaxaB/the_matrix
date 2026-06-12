@@ -1,0 +1,51 @@
+# Catálogo de loops del runtime (diseño §5quater): cada loop existe como
+# config + implementación, con hard stops obligatorios. La implementación
+# vive en apps/agent (saxa.loop los ejecuta).
+
+defaults:
+  max_iterations: 5
+  max_tool_calls: 20
+  wall_clock_timeout_s: 300
+  # N vueltas sin cambio de estado -> parar y avisar
+  no_progress_limit: 2
+
+loops:
+  briefing_diario:
+    trigger: "n8n cron L-V"
+    domain: finance
+    task: briefing_synthesis
+    gates: [source_gate, telegram_md_lint]
+    max_iterations: 3
+    wall_clock_timeout_s: 600
+
+  consulta_chat:
+    trigger: "telegram"
+    domain: finance
+    task: classify_intent
+    gates: [telegram_md_lint]
+    max_iterations: 4
+    wall_clock_timeout_s: 180
+
+  radar_semanal:
+    trigger: "n8n domingo"
+    domain: finance
+    task: radar_scoring
+    gates: [risk_gate]          # F4
+    max_iterations: 3
+    wall_clock_timeout_s: 900
+
+  decision_inversion:
+    trigger: "chat"
+    domain: finance
+    task: decision_node
+    gates: [risk_gate, hitl_rojo]   # F5: LangGraph + approval gate
+    max_iterations: 6
+    wall_clock_timeout_s: 1200
+
+  compactacion_wiki:
+    trigger: "n8n nocturno"
+    domain: finance
+    task: summarize_source
+    gates: [pii_check]          # F6
+    max_iterations: 2
+    wall_clock_timeout_s: 600

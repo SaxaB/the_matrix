@@ -1,0 +1,200 @@
+version: 1
+updated: "2026-06-02"
+
+pipeline_defaults:
+  x_stonks:
+    list_url: "https://x.com/i/lists/1988527303635411209"
+    max_results: 60
+  reddit_retail:
+    subreddits:
+      - wallstreetbets
+      - stocks
+      - investing
+    limit_per_subreddit: 15
+    extra_terms:
+      - AI
+      - HBM
+      - semiconductors
+      - memory
+      - SOX
+      - Korea
+  citrini_substack:
+    query: "site:citriniresearch.com OR site:citriniresearch.substack.com Citrini Research AI semiconductors supply chain"
+    max_articles: 3
+  especialistas_citrini:
+    handles:
+      - citrini
+      - zephyr_z9
+      - jukan05
+    max_pages: 1
+    workers: 3
+  x_search:
+    # Busqueda de X por keyword/topic (tools/scripts/x_search_fetch.py). On-demand,
+    # no obligatoria. El agente la usa para CONTRASTAR (noticias, cuando lo considere)
+    # y al ANALIZAR UNA ACCION. sort Latest = ultimo minuto; Top = relevancia/sentimiento.
+    actor: "kaitoeasyapi/twitter-x-data-tweet-scraper-pay-per-result-cheapest"
+    sort_default: "Latest"
+    max_results: 30
+
+request_types:
+  briefing_completo:
+    description: "Briefing de mercado completo US / informativo / cierre / que pasa hoy."
+    trigger_terms:
+      - "briefing completo"
+      - "briefing v"
+      - "briefing us"
+      - "briefing de mercado"
+      - "cierre us"
+      - "mercado hoy"
+      - "que pasa hoy"
+      - "qué pasa hoy"
+      - "informativo"
+    required_groups:
+      - portfolio_step0
+      - carpatos
+      - sectorial_us
+      - cross_asset
+      - news_tickers
+      - x_stonks
+      - reddit_retail
+    require_any:
+      especialistas_citrini:
+        min: 1
+        within_hours: 24
+        groups:
+          - citrini_substack
+          - citrini_x
+          - zephyr_z9
+          - jukan05
+    # Fuentes disponibles pero NO obligatorias (no bloquean el gate). El agente las
+    # usa cuando aportan: contraste de una noticia, sentimiento, analisis de una accion.
+    optional_groups:
+      - x_search
+
+groups:
+  portfolio_step0:
+    label: "Step 0 posiciones/tesis/risk budget"
+    aliases:
+      - "step 0"
+      - "posiciones"
+      - "tesis activas"
+      - "risk budget"
+      - "portfolio"
+      - "cartera"
+  carpatos:
+    label: "Cárpatos"
+    aliases:
+      - "carpatos"
+      - "cárpatos"
+      - "youtube_transcript.py latest carpatos"
+      - "the mother of all bubbles"
+  sectorial_us:
+    label: "Sectorial US"
+    aliases:
+      - "sectorial"
+      - "sectors"
+      - "technical.py sectors"
+      - "sox"
+      - "xlk"
+      - "semis"
+      - "tecnologia por subsectores"
+      - "tecnología por subsectores"
+  cross_asset:
+    label: "Bolsa mundial / cross-asset"
+    aliases:
+      - "cross-asset"
+      - "cross asset"
+      - "bolsa mundial"
+      - "world"
+      - "technical.py world"
+      - "vix"
+      - "us10y"
+      - "dxy"
+      - "kospi"
+      - "korea"
+  news_tickers:
+    label: "News SPY/tickers"
+    aliases:
+      - "news"
+      - "noticias"
+      - "finnhub_query.py news"
+      - "company-news"
+      - "catalizador"
+      - "ubs"
+  x_stonks:
+    label: "X List Stonks"
+    aliases:
+      - "x stonks"
+      - "x list stonks"
+      - "stonks list"
+      - "1988527303635411209"
+      - "x_lists_fetch.py"
+      - "kobeissi"
+      - "amitisinvesting"
+  reddit_retail:
+    label: "Reddit retail"
+    aliases:
+      - "reddit"
+      - "wallstreetbets"
+      - "wsb"
+      - "r/stocks"
+      - "r/investing"
+      - "retail"
+  citrini_substack:
+    label: "Citrini Substack"
+    aliases:
+      - "citrini substack"
+      - "citrini research"
+      - "supply chain inheritance"
+      - "citriniresearch.com"
+  citrini_x:
+    label: "@citrini X"
+    aliases:
+      - "@citrini"
+      - "citrini x"
+  zephyr_z9:
+    label: "@zephyr_z9"
+    aliases:
+      - "zephyr"
+      - "zephyr_z9"
+      - "@zephyr_z9"
+  jukan05:
+    label: "@jukan05"
+    aliases:
+      - "jukan"
+      - "jukan05"
+      - "@jukan05"
+  x_search:
+    label: "Búsqueda X por topic"
+    aliases:
+      - "x_search_fetch.py"
+      - "busqueda x"
+      - "búsqueda x"
+      - "x search"
+      - "tweets sobre"
+      - "que se dice de"
+      - "qué se dice de"
+      - "sentimiento x"
+
+omission_terms:
+  - "omitido"
+  - "omití"
+  - "omiti"
+  - "no consultado"
+  - "no lo consulté"
+  - "no lo consulte"
+  - "no disponible"
+  - "sin publicaciones"
+  - "sin señal"
+  - "fallback"
+
+coverage_terms:
+  - "fuentes consultadas"
+  - "fuentes / omisiones"
+  - "cobertura de fuentes"
+  - "source coverage"
+  - "omitidas"
+
+override_terms:
+  - "briefing parcial"
+  - "#source-gate-override"

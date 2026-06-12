@@ -281,5 +281,90 @@ services:
       kong:
         condition: service_healthy
 
+  # ETL de mercado (F1). One-shot bajo perfil "jobs": no arranca con `up`,
+  # se invoca por job (n8n o a mano):
+  #   docker compose run --rm etl etl:yahoo -- --universe indices
+  etl:
+    container_name: matrix-etl
+    build:
+      context: .
+      dockerfile: apps/etl/Dockerfile
+    profiles: ["jobs"]
+    environment:
+      SUPABASE_URL: http://kong:8000
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SEC_EDGAR_USER_AGENT: ${SEC_EDGAR_USER_AGENT}
+      DASHBOARD_CALENDAR_TZ: ${DASHBOARD_CALENDAR_TZ:-Europe/Madrid}
+    depends_on:
+      kong:
+        condition: service_healthy
+
+  # Dashboard web (F2): shell + sección Finanzas (Next.js standalone).
+  # Con tunnel se publica como app.<dominio>; en LAN, puerto 3000.
+  web:
+    container_name: matrix-web
+    build:
+      context: .
+      dockerfile: apps/client/web/Dockerfile
+      args:
+        # Horneadas en build (las usa el navegador): URL pública de Kong
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    environment:
+      # Server-side (SSR/server actions hablan con Kong por la red interna)
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_URL: http://kong:8000
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SEC_EDGAR_USER_AGENT: ${SEC_EDGAR_USER_AGENT}
+      DASHBOARD_CALENDAR_TZ: ${DASHBOARD_CALENDAR_TZ:-Europe/Madrid}
+      ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      kong:
+        condition: service_healthy
+
+  # saxa (F3): orquestador de agentes. Gateway Telegram por long polling
+  # (no necesita puerto ni tunnel). Habla con Postgres directo.
+  agent:
+    container_name: matrix-agent
+    build:
+      context: .
+      dockerfile: apps/agent/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ALLOWED_CHAT_IDS: ${TELEGRAM_ALLOWED_CHAT_IDS:-}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
+      APIFY_KEYS: ${APIFY_KEYS:-}
+      JINA_KEYS: ${JINA_KEYS:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Scheduler de cadencias ETL (F1): Yahoo diario → risk después → SEC semanal.
+  # Solo LAN (no se expone por el tunnel). Primer login crea el usuario admin.
+  n8n:
+    container_name: matrix-n8n
+    image: n8nio/n8n:1.123.55
+    restart: unless-stopped
+    ports:
+      - 5678:5678
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      GENERIC_TIMEZONE: ${DASHBOARD_CALENDAR_TZ:-Europe/Madrid}
+      TZ: ${DASHBOARD_CALENDAR_TZ:-Europe/Madrid}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+    volumes:
+      - n8n-data:/home/node/.n8n
+
 volumes:
   db-config:
+  n8n-data:

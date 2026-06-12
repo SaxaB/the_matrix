@@ -1,0 +1,22 @@
+{
+  "name": "@matrix/client-shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TS puro compartido por web y mobile: cliente Supabase, tipos, formatters (sin UI de plataforma)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./supabase": "./src/supabase.ts",
+    "./format": "./src/format.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@matrix/db": "workspace:*",
+    "@supabase/supabase-js": "^2.103.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

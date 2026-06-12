@@ -1,0 +1,5 @@
+packages:
+  - "apps/*"
+  - "apps/client/*"
+  - "apps/client/sections/*"
+  - "packages/*"

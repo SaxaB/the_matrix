@@ -1,0 +1,9 @@
+{
+  "name": "@matrix/db",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Contrato de datos de the_matrix: migraciones SQL + tipos TS",
+  "exports": {
+    "./types": "./types.ts"
+  }
+}
