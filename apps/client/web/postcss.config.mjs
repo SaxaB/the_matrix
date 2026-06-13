@@ -1,28 +1,18 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 
-const __filename = fileURLToPath(import.meta.url);
-const require = createRequire(__filename);
-
-function getProjectRoot() {
-  try {
-    const pkgPath = require.resolve("tailwindcss/package.json");
-    return path.dirname(path.dirname(path.dirname(pkgPath)));
-  } catch {
-    return path.dirname(__filename);
-  }
-}
-
-const projectRoot = getProjectRoot();
+// `base` de Tailwind v4 = raíz de ESTA app web (donde vive src/ con las clases).
+// En el monorepo pnpm no se puede derivar de require.resolve("tailwindcss")
+// porque los symlinks de .pnpm llevan a un directorio equivocado y Tailwind
+// escanearía donde no hay clases → CSS vacío. Lo fijamos al dir de la app.
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Next.js (webpack) only accepts PostCSS plugins in a serializable shape — see
  * https://nextjs.org/docs/messages/postcss-shape
- * Use string keys (no inline plugin objects, no [pluginFn, opts] tuples with custom fn).
  */
 export default {
   plugins: {
-    "@tailwindcss/postcss": { base: projectRoot },
+    "@tailwindcss/postcss": { base: appRoot },
   },
 };

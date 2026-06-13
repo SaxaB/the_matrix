@@ -1,31 +1,64 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../supabase";
+import { ScreenBackground, Surface, ThemeText } from "../theme/components";
+import { ThemePicker } from "../theme/ThemePicker";
+import { useTheme } from "../theme/ThemeProvider";
 
 export function SettingsScreen({ email }: { email: string | null }) {
+  const { theme } = useTheme();
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Sesión</Text>
-      <Text style={styles.value}>{email ?? "—"}</Text>
-      <Text style={styles.label}>Servidor</Text>
-      <Text style={styles.value}>{process.env.EXPO_PUBLIC_SUPABASE_URL ?? "no configurado"}</Text>
-      <TouchableOpacity style={styles.button} onPress={() => void supabase.auth.signOut()}>
-        <Text style={styles.buttonText}>Cerrar sesión</Text>
-      </TouchableOpacity>
-    </View>
+    <ScreenBackground>
+      <ScrollView contentContainerStyle={styles.container}>
+        <ThemeText style={styles.h1}>Ajustes</ThemeText>
+
+        <ThemeText muted style={styles.section}>
+          APARIENCIA
+        </ThemeText>
+        <ThemePicker />
+
+        <ThemeText muted style={styles.section}>
+          SESIÓN
+        </ThemeText>
+        <Surface contentStyle={styles.card}>
+          <ThemeText muted style={styles.label}>
+            Usuario
+          </ThemeText>
+          <ThemeText style={styles.value}>{email ?? "—"}</ThemeText>
+          <ThemeText muted style={[styles.label, styles.mt]}>
+            Servidor
+          </ThemeText>
+          <ThemeText style={styles.value}>
+            {process.env.EXPO_PUBLIC_SUPABASE_URL ?? "no configurado"}
+          </ThemeText>
+        </Surface>
+
+        <TouchableOpacity
+          style={[styles.button, { borderColor: theme.danger }]}
+          onPress={() => void supabase.auth.signOut()}
+        >
+          <Text style={[styles.buttonText, { color: theme.danger, fontFamily: theme.fontFamily }]}>
+            Cerrar sesión
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, gap: 6 },
-  label: { fontSize: 12, color: "#888", marginTop: 16, textTransform: "uppercase" },
+  container: { padding: 20, paddingTop: 70, paddingBottom: 110, gap: 8 },
+  h1: { fontSize: 28, fontWeight: "700" },
+  section: { fontSize: 12, letterSpacing: 1, marginTop: 18, marginBottom: 4 },
+  card: { padding: 16 },
+  label: { fontSize: 12, textTransform: "uppercase" },
   value: { fontSize: 16 },
+  mt: { marginTop: 12 },
   button: {
-    marginTop: 32,
+    marginTop: 28,
     borderWidth: 1,
-    borderColor: "#c0262d",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
     alignItems: "center",
   },
-  buttonText: { color: "#c0262d", fontWeight: "600" },
+  buttonText: { fontWeight: "700" },
 });

@@ -24,6 +24,13 @@ import {
   type ChatMessage,
 } from "@matrix/client-shared";
 import { supabase } from "../supabase";
+import { ScreenBackground, Surface, ThemeText } from "../theme/components";
+import { useTheme } from "../theme/ThemeProvider";
+import { useAudioMode } from "../voice/AudioModeProvider";
+import { speak, stopSpeaking } from "../voice/speech";
+import { useDictation } from "../voice/useDictation";
+
+const APPROVE = "#2ecc71";
 
 /** Tarjeta de aprobación HITL: captura + Aprobar/Rechazar (§8.2). */
 function ApprovalCard({
@@ -33,57 +40,76 @@ function ApprovalCard({
   m: ChatMessage;
   onDecide: (cmd: string) => void;
 }) {
+  const { theme } = useTheme();
   const meta = approvalMetadata(m)!;
   const shortId = meta.approval_id.slice(0, 8);
   return (
-    <View style={styles.approvalCard}>
-      <Text style={styles.approvalText}>{m.content}</Text>
+    <Surface style={styles.approvalCard} contentStyle={styles.approvalInner}>
+      <ThemeText style={styles.approvalText}>{m.content}</ThemeText>
       {meta.image_url ? (
-        <Image
-          source={{ uri: meta.image_url }}
-          style={styles.approvalImage}
-          resizeMode="contain"
-        />
+        <Image source={{ uri: meta.image_url }} style={styles.approvalImage} resizeMode="contain" />
       ) : (
-        <Text style={styles.approvalNoImage}>
+        <ThemeText muted style={styles.approvalNoImage}>
           (captura disponible en el EQR6)
-        </Text>
+        </ThemeText>
       )}
       <View style={styles.approvalButtons}>
         <TouchableOpacity
-          style={[styles.approveBtn, styles.rejectBtn]}
+          style={[styles.btn, { borderWidth: 1, borderColor: theme.danger }]}
           onPress={() => onDecide(`/rechazar ${shortId}`)}
         >
-          <Text style={styles.rejectText}>Rechazar</Text>
+          <Text style={[styles.btnText, { color: theme.danger, fontFamily: theme.fontFamily }]}>
+            Rechazar
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.approveBtn}
+          style={[styles.btn, { backgroundColor: APPROVE }]}
           onPress={() => onDecide(`/aprobar ${shortId}`)}
         >
-          <Text style={styles.approveText}>Aprobar</Text>
+          <Text style={[styles.btnText, { color: "#04140a", fontFamily: theme.fontFamily }]}>
+            Aprobar
+          </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Surface>
   );
 }
 
 function Bubble({ m }: { m: ChatMessage }) {
+  const { theme } = useTheme();
   const mine = m.role === "user";
   return (
-    <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
-      <Text style={mine ? styles.mineText : styles.theirsText}>{m.content}</Text>
+    <View
+      style={[
+        styles.bubble,
+        mine
+          ? { alignSelf: "flex-end", backgroundColor: theme.primary }
+          : { alignSelf: "flex-start", backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.surfaceBorder },
+      ]}
+    >
+      <Text
+        style={[
+          styles.bubbleText,
+          { color: mine ? theme.primaryText : theme.text, fontFamily: theme.fontFamily },
+        ]}
+      >
+        {m.content}
+      </Text>
       {m.status === "pending" || m.status === "processing" ? (
-        <ActivityIndicator size="small" style={styles.spinner} />
+        <ActivityIndicator size="small" color={mine ? theme.primaryText : theme.text} style={styles.spinner} />
       ) : null}
     </View>
   );
 }
 
 export function ChatScreen({ userId }: { userId: string }) {
+  const { theme } = useTheme();
+  const { audioMode, toggle } = useAudioMode();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const lastSpokenId = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -100,6 +126,20 @@ export function ChatScreen({ userId }: { userId: string }) {
     return unsubscribe;
   }, [load, userId]);
 
+  // Modo audio: lee en voz alta la última respuesta de saxa (una sola vez).
+  useEffect(() => {
+    if (!audioMode || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (
+      last.role === "assistant" &&
+      last.status === "done" &&
+      last.id !== lastSpokenId.current
+    ) {
+      lastSpokenId.current = last.id;
+      speak(last.content);
+    }
+  }, [messages, audioMode]);
+
   const sendText = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
@@ -113,6 +153,11 @@ export function ChatScreen({ userId }: { userId: string }) {
     [userId]
   );
 
+  const dictation = useDictation((text) => {
+    // Voz reconocida → la mandamos directamente a saxa.
+    void sendText(text);
+  });
+
   async function send() {
     const content = draft.trim();
     if (!content) return;
@@ -120,113 +165,142 @@ export function ChatScreen({ userId }: { userId: string }) {
     await sendText(content);
   }
 
+  function onMicPress() {
+    if (dictation.listening) dictation.stop();
+    else dictation.start();
+  }
+
+  function onAudioToggle() {
+    if (audioMode) stopSpeaking();
+    toggle();
+  }
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={90}
-    >
-      {error && <Text style={styles.error}>{error}</Text>}
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(m) => m.id}
-        renderItem={({ item }) =>
-          approvalMetadata(item) ? (
-            <ApprovalCard m={item} onDecide={(cmd) => void sendText(cmd)} />
-          ) : (
-            <Bubble m={item} />
-          )
-        }
-        contentContainerStyle={styles.list}
-        onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        ListEmptyComponent={
-          <Text style={styles.empty}>
-            Habla con saxa: mercado, tus documentos, lo que necesites.
-          </Text>
-        }
-      />
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Mensaje a saxa…"
-          value={draft}
-          onChangeText={setDraft}
-          onSubmitEditing={send}
-          returnKeyType="send"
-          multiline
+    <ScreenBackground>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={90}
+      >
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            onPress={onAudioToggle}
+            style={[
+              styles.audioToggle,
+              {
+                borderColor: audioMode ? theme.primary : theme.surfaceBorder,
+                backgroundColor: audioMode ? theme.primary : "transparent",
+              },
+            ]}
+          >
+            <Text style={{ color: audioMode ? theme.primaryText : theme.textMuted, fontFamily: theme.fontFamily, fontSize: 13 }}>
+              {audioMode ? "🔊 Voz activada" : "🔈 Modo audio"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(m) => m.id}
+          renderItem={({ item }) =>
+            approvalMetadata(item) ? (
+              <ApprovalCard m={item} onDecide={(cmd) => void sendText(cmd)} />
+            ) : (
+              <Bubble m={item} />
+            )
+          }
+          contentContainerStyle={styles.list}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          ListEmptyComponent={
+            <ThemeText muted style={styles.empty}>
+              Habla con saxa: mercado, tus documentos, lo que necesites.
+            </ThemeText>
+          }
         />
-        <TouchableOpacity style={styles.sendBtn} onPress={send}>
-          <Text style={styles.sendText}>➤</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+        <View style={[styles.inputRow, { borderColor: theme.surfaceBorder }]}>
+          <TouchableOpacity
+            style={[
+              styles.micBtn,
+              {
+                backgroundColor: dictation.listening ? theme.danger : "transparent",
+                borderColor: dictation.listening ? theme.danger : theme.inputBorder,
+              },
+            ]}
+            onPress={onMicPress}
+          >
+            <Text style={{ fontSize: 18 }}>{dictation.listening ? "⏺" : "🎤"}</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={[
+              styles.input,
+              { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.text, fontFamily: theme.fontFamily },
+            ]}
+            placeholder={dictation.listening ? "Escuchando…" : "Mensaje a saxa…"}
+            placeholderTextColor={theme.placeholder}
+            value={dictation.listening && dictation.partial ? dictation.partial : draft}
+            onChangeText={setDraft}
+            onSubmitEditing={send}
+            returnKeyType="send"
+            multiline
+            editable={!dictation.listening}
+          />
+          <TouchableOpacity style={[styles.sendBtn, { backgroundColor: theme.primary }]} onPress={send}>
+            <Text style={{ color: theme.primaryText, fontSize: 16 }}>➤</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  list: { padding: 12, gap: 8 },
-  bubble: { maxWidth: "85%", borderRadius: 14, padding: 12 },
-  mine: { alignSelf: "flex-end", backgroundColor: "#111" },
-  theirs: { alignSelf: "flex-start", backgroundColor: "#ececec" },
-  mineText: { color: "#fff", fontSize: 15 },
-  theirsText: { color: "#111", fontSize: 15 },
-  spinner: { marginTop: 6, alignSelf: "flex-start" },
-  approvalCard: {
-    alignSelf: "stretch",
+  topBar: { alignItems: "flex-end", paddingTop: 64, paddingHorizontal: 12, paddingBottom: 4 },
+  audioToggle: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  micBtn: {
     borderWidth: 1,
-    borderColor: "#d6b400",
-    backgroundColor: "#fffbe6",
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
+    borderRadius: 18,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  approvalText: { fontSize: 14, color: "#111" },
+  list: { padding: 12, paddingTop: 8, gap: 8 },
+  bubble: { maxWidth: "85%", borderRadius: 14, padding: 12 },
+  bubbleText: { fontSize: 15 },
+  spinner: { marginTop: 6, alignSelf: "flex-start" },
+  approvalCard: { alignSelf: "stretch" },
+  approvalInner: { padding: 14, gap: 10 },
+  approvalText: { fontSize: 14 },
   approvalImage: {
     width: "100%",
     height: 220,
     borderRadius: 8,
-    backgroundColor: "#fff",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#ddd",
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
-  approvalNoImage: { fontSize: 12, color: "#888", fontStyle: "italic" },
+  approvalNoImage: { fontSize: 12, fontStyle: "italic" },
   approvalButtons: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
-  approveBtn: {
-    backgroundColor: "#0a7f3f",
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  approveText: { color: "#fff", fontWeight: "700" },
-  rejectBtn: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#c0262d" },
-  rejectText: { color: "#c0262d", fontWeight: "700" },
+  btn: { borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10 },
+  btnText: { fontWeight: "700" },
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     padding: 10,
+    paddingBottom: 24,
     gap: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: "#ddd",
   },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ccc",
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
     maxHeight: 110,
   },
-  sendBtn: {
-    backgroundColor: "#111",
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  sendText: { color: "#fff", fontSize: 16 },
-  empty: { textAlign: "center", color: "#666", marginTop: 40, paddingHorizontal: 24 },
-  error: { color: "#c0262d", padding: 10 },
+  sendBtn: { borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10 },
+  empty: { textAlign: "center", marginTop: 40, paddingHorizontal: 24 },
+  error: { padding: 10 },
 });

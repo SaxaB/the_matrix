@@ -27,15 +27,21 @@ import {
   type VaultDocument,
 } from "@matrix/section-vault";
 import { supabase } from "../supabase";
+import { ScreenBackground, Surface, ThemeText } from "../theme/components";
+import { useTheme } from "../theme/ThemeProvider";
+
+const OK = "#2ecc71";
+const SOON = "#e3a008";
 
 function ExpiryBadge({ doc }: { doc: VaultDocument }) {
+  const { theme } = useTheme();
   const info = expiryInfo(doc);
   if (info.daysLeft == null) return null;
-  const color = info.expired ? "#c0262d" : info.soon ? "#b8860b" : "#0a7f3f";
+  const color = info.expired ? theme.danger : info.soon ? SOON : OK;
   const text = info.expired
     ? `caducó hace ${-info.daysLeft}d`
     : `caduca en ${info.daysLeft}d`;
-  return <Text style={[styles.badge, { color }]}>{text}</Text>;
+  return <Text style={[styles.badge, { color, fontFamily: theme.fontFamily }]}>{text}</Text>;
 }
 
 function AddDocModal({
@@ -49,10 +55,11 @@ function AddDocModal({
   onClose: () => void;
   onAdded: () => void;
 }) {
+  const { theme } = useTheme();
   const [title, setTitle] = useState("");
   const [docType, setDocType] = useState<DocType>("identity");
   const [holder, setHolder] = useState("");
-  const [expiry, setExpiry] = useState(""); // YYYY-MM-DD
+  const [expiry, setExpiry] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -81,51 +88,90 @@ function AddDocModal({
     }
   }
 
+  const inputStyle = {
+    backgroundColor: theme.inputBg,
+    borderColor: theme.inputBorder,
+    color: theme.text,
+    fontFamily: theme.fontFamily,
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <ScrollView contentContainerStyle={styles.modal}>
-        <Text style={styles.modalTitle}>Nuevo documento</Text>
-        <Text style={styles.label}>Título *</Text>
-        <TextInput style={styles.input} value={title} onChangeText={setTitle}
-          placeholder="Pasaporte español" />
-        <Text style={styles.label}>Tipo</Text>
-        <View style={styles.chips}>
-          {DOC_TYPES.map((t) => (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose} transparent>
+      <ScreenBackground>
+        <ScrollView contentContainerStyle={styles.modal}>
+          <ThemeText style={styles.modalTitle}>Nuevo documento</ThemeText>
+          <ThemeText muted style={styles.label}>Título *</ThemeText>
+          <TextInput
+            style={[styles.input, inputStyle]}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Pasaporte español"
+            placeholderTextColor={theme.placeholder}
+          />
+          <ThemeText muted style={styles.label}>Tipo</ThemeText>
+          <View style={styles.chips}>
+            {DOC_TYPES.map((t) => {
+              const on = docType === t.value;
+              return (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[
+                    styles.chip,
+                    { borderColor: on ? theme.primary : theme.surfaceBorder,
+                      backgroundColor: on ? theme.primary : "transparent" },
+                  ]}
+                  onPress={() => setDocType(t.value)}
+                >
+                  <Text style={{ color: on ? theme.primaryText : theme.textMuted, fontSize: 13, fontFamily: theme.fontFamily }}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <ThemeText muted style={styles.label}>Titular</ThemeText>
+          <TextInput
+            style={[styles.input, inputStyle]}
+            value={holder}
+            onChangeText={setHolder}
+            placeholder="Alejandro"
+            placeholderTextColor={theme.placeholder}
+          />
+          <ThemeText muted style={styles.label}>Caducidad (YYYY-MM-DD)</ThemeText>
+          <TextInput
+            style={[styles.input, inputStyle]}
+            value={expiry}
+            onChangeText={setExpiry}
+            placeholder="2031-03-12"
+            placeholderTextColor={theme.placeholder}
+            autoCapitalize="none"
+          />
+          <ThemeText muted style={styles.privacyNote}>
+            Solo se guardan estos datos. El fichero (PDF/foto) se adjuntará cuando
+            esté listo el almacén cifrado del EQR6; nunca sale del host ni va a un modelo.
+          </ThemeText>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+              <ThemeText muted style={styles.cancelText}>Cancelar</ThemeText>
+            </TouchableOpacity>
             <TouchableOpacity
-              key={t.value}
-              style={[styles.chip, docType === t.value && styles.chipOn]}
-              onPress={() => setDocType(t.value)}
+              style={[styles.saveBtn, { backgroundColor: theme.primary }]}
+              onPress={save}
+              disabled={saving}
             >
-              <Text style={docType === t.value ? styles.chipOnText : styles.chipText}>
-                {t.label}
+              <Text style={{ color: theme.primaryText, fontWeight: "700", fontFamily: theme.fontFamily }}>
+                {saving ? "Guardando…" : "Guardar"}
               </Text>
             </TouchableOpacity>
-          ))}
-        </View>
-        <Text style={styles.label}>Titular</Text>
-        <TextInput style={styles.input} value={holder} onChangeText={setHolder}
-          placeholder="Alejandro" />
-        <Text style={styles.label}>Caducidad (YYYY-MM-DD)</Text>
-        <TextInput style={styles.input} value={expiry} onChangeText={setExpiry}
-          placeholder="2031-03-12" autoCapitalize="none" />
-        <Text style={styles.privacyNote}>
-          Solo se guardan estos datos. El fichero (PDF/foto) se adjuntará cuando
-          esté listo el almacén cifrado del EQR6; nunca sale del host ni va a un modelo.
-        </Text>
-        <View style={styles.modalButtons}>
-          <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-            <Text style={styles.cancelText}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.saveBtn} onPress={save} disabled={saving}>
-            <Text style={styles.saveText}>{saving ? "Guardando…" : "Guardar"}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </ScreenBackground>
     </Modal>
   );
 }
 
 export function VaultScreen({ userId }: { userId: string }) {
+  const { theme } = useTheme();
   const [docs, setDocs] = useState<VaultDocument[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -153,35 +199,43 @@ export function VaultScreen({ userId }: { userId: string }) {
   const typeLabel = (t: DocType) => DOC_TYPES.find((x) => x.value === t)?.label ?? t;
 
   return (
-    <View style={styles.container}>
-      {error && <Text style={styles.error}>{error}</Text>}
+    <ScreenBackground>
       <FlatList
         data={docs}
         keyExtractor={(d) => d.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.text} />
+        }
+        ListHeaderComponent={
+          error ? <Text style={[styles.error, { color: theme.danger }]}>{error}</Text> : null
+        }
         renderItem={({ item }) => (
-          <View style={styles.row}>
+          <Surface style={styles.rowCard} contentStyle={styles.row}>
             <View style={styles.rowLeft}>
-              <Text style={styles.docTitle}>{item.title}</Text>
-              <Text style={styles.docMeta}>
+              <ThemeText style={styles.docTitle}>{item.title}</ThemeText>
+              <ThemeText muted style={styles.docMeta}>
                 {typeLabel(item.doc_type)}
                 {item.holder ? ` · ${item.holder}` : ""}
-              </Text>
+              </ThemeText>
             </View>
             <ExpiryBadge doc={item} />
-          </View>
+          </Surface>
         )}
         ListEmptyComponent={
           !error ? (
-            <Text style={styles.empty}>
+            <ThemeText muted style={styles.empty}>
               Sin documentos. Añade tu pasaporte, visado, seguros… y saxa te avisa
               antes de que caduquen.
-            </Text>
+            </ThemeText>
           ) : null
         }
       />
-      <TouchableOpacity style={styles.fab} onPress={() => setAdding(true)}>
-        <Text style={styles.fabText}>+</Text>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.primary }]}
+        onPress={() => setAdding(true)}
+      >
+        <Text style={[styles.fabText, { color: theme.primaryText }]}>+</Text>
       </TouchableOpacity>
       <AddDocModal
         userId={userId}
@@ -189,64 +243,45 @@ export function VaultScreen({ userId }: { userId: string }) {
         onClose={() => setAdding(false)}
         onAdded={load}
       />
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  list: { padding: 16, paddingTop: 70, paddingBottom: 110, gap: 10 },
+  rowCard: {},
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#eee",
+    padding: 14,
   },
   rowLeft: { flexShrink: 1, paddingRight: 12 },
   docTitle: { fontSize: 16, fontWeight: "600" },
-  docMeta: { fontSize: 12, color: "#666", marginTop: 2 },
+  docMeta: { fontSize: 12, marginTop: 2 },
   badge: { fontSize: 12, fontWeight: "700" },
-  empty: { textAlign: "center", color: "#666", marginTop: 40, paddingHorizontal: 28 },
-  error: { color: "#c0262d", padding: 16 },
+  empty: { textAlign: "center", marginTop: 40, paddingHorizontal: 28 },
+  error: { paddingBottom: 12 },
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 28,
+    bottom: 96,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#111",
     alignItems: "center",
     justifyContent: "center",
   },
-  fabText: { color: "#fff", fontSize: 30, lineHeight: 34 },
-  modal: { padding: 24, gap: 8, paddingTop: 64 },
+  fabText: { fontSize: 30, lineHeight: 34 },
+  modal: { padding: 24, gap: 8, paddingTop: 64, paddingBottom: 60 },
   modalTitle: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
-  label: { fontSize: 13, color: "#888", marginTop: 10 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-  },
+  label: { fontSize: 13, marginTop: 10 },
+  input: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  chipOn: { backgroundColor: "#111", borderColor: "#111" },
-  chipText: { color: "#333", fontSize: 13 },
-  chipOnText: { color: "#fff", fontSize: 13 },
-  privacyNote: { fontSize: 12, color: "#888", marginTop: 16, fontStyle: "italic" },
+  chip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
+  privacyNote: { fontSize: 12, marginTop: 16, fontStyle: "italic" },
   modalButtons: { flexDirection: "row", gap: 12, marginTop: 24, justifyContent: "flex-end" },
   cancelBtn: { padding: 14 },
-  cancelText: { color: "#666", fontWeight: "600" },
-  saveBtn: { backgroundColor: "#111", borderRadius: 10, paddingHorizontal: 24, paddingVertical: 14 },
-  saveText: { color: "#fff", fontWeight: "700" },
+  cancelText: { fontWeight: "600" },
+  saveBtn: { borderRadius: 10, paddingHorizontal: 24, paddingVertical: 14 },
 });

@@ -1,3 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+
+/*
+ * Fuentes de clases explícitas. En el monorepo pnpm la autodetección de
+ * Tailwind v4 no escanea src/ de forma fiable (el .git está en la raíz del
+ * monorepo y los symlinks de .pnpm despistan al detector), así que las
+ * utilidades del código (text-3xl, max-w-6xl, grid…) no se generaban.
+ * `@source` relativo a este fichero (src/styles/) → ../ = src/.
+ */
+@source "../";

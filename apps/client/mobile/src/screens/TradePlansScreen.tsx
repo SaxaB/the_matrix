@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text } from "react-native";
 import { formatDateEs } from "@matrix/client-shared/format";
 import {
   avgEntry,
@@ -9,6 +9,8 @@ import {
   type TradePlan,
 } from "@matrix/section-finance";
 import { supabase } from "../supabase";
+import { ScreenBackground, Surface, ThemeText } from "../theme/components";
+import { useTheme } from "../theme/ThemeProvider";
 
 const STATUS_LABEL: Record<TradePlan["status"], string> = {
   draft: "borrador",
@@ -21,29 +23,30 @@ const STATUS_LABEL: Record<TradePlan["status"], string> = {
 function PlanCard({ plan }: { plan: TradePlan }) {
   const r = computedRMultiple(plan);
   return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.ticker}>
-          {plan.ticker} <Text style={styles.side}>{plan.side}</Text>
-        </Text>
-        <Text style={styles.status}>{STATUS_LABEL[plan.status]}</Text>
-      </View>
-      <Text style={styles.line}>
+    <Surface contentStyle={styles.card}>
+      <ThemeText style={styles.ticker}>
+        {plan.ticker} <ThemeText muted style={styles.side}>{plan.side}</ThemeText>
+      </ThemeText>
+      <ThemeText muted style={styles.status}>
+        {STATUS_LABEL[plan.status]}
+      </ThemeText>
+      <ThemeText style={styles.line}>
         Entrada media {avgEntry(plan).toFixed(2)} · SL {plan.stop_loss.toFixed(2)}
         {r != null ? ` · R ${r.toFixed(2)}` : ""}
-      </Text>
-      <Text style={styles.meta}>
+      </ThemeText>
+      <ThemeText muted style={styles.meta}>
         Tamaño objetivo {plan.position_pct_target.toFixed(1)}%
         {plan.created_at ? ` · ${formatDateEs(plan.created_at)}` : ""}
-      </Text>
-      <Text style={styles.disclaimer}>
+      </ThemeText>
+      <ThemeText muted style={styles.disclaimer}>
         Recomendación L2 — ejecutar es siempre decisión humana.
-      </Text>
-    </View>
+      </ThemeText>
+    </Surface>
   );
 }
 
 export function TradePlansScreen() {
+  const { theme } = useTheme();
   const [plans, setPlans] = useState<TradePlan[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,49 +61,41 @@ export function TradePlansScreen() {
 
   useEffect(() => {
     void load();
-    // Realtime (§4bis): saxa escribe un plan y la lista se repinta sola
     const unsubscribe = subscribeTradePlans(supabase, () => void load());
     return unsubscribe;
   }, [load]);
 
   return (
-    <View style={styles.container}>
-      {error && <Text style={styles.error}>{error}</Text>}
+    <ScreenBackground>
       <FlatList
         data={plans}
         keyExtractor={(p) => p.id ?? `${p.ticker}-${p.created_at}`}
         renderItem={({ item }) => <PlanCard plan={item} />}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          error ? <Text style={[styles.error, { color: theme.danger }]}>{error}</Text> : null
+        }
         ListEmptyComponent={
           !error ? (
-            <Text style={styles.empty}>
+            <ThemeText muted style={styles.empty}>
               Sin trade plans. Cuando saxa genere uno validado aparecerá aquí al instante.
-            </Text>
+            </ThemeText>
           ) : null
         }
       />
-    </View>
+    </ScreenBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  list: { padding: 16, gap: 12 },
-  card: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 12,
-    padding: 16,
-    gap: 4,
-    backgroundColor: "#fff",
-  },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between" },
+  list: { padding: 16, paddingTop: 70, paddingBottom: 110, gap: 12 },
+  card: { padding: 16, gap: 4 },
   ticker: { fontSize: 17, fontWeight: "700" },
-  side: { fontSize: 12, color: "#666", fontWeight: "400" },
-  status: { fontSize: 12, color: "#444" },
+  side: { fontSize: 12, fontWeight: "400" },
+  status: { fontSize: 12 },
   line: { fontSize: 14 },
-  meta: { fontSize: 12, color: "#666" },
-  disclaimer: { fontSize: 11, color: "#999", marginTop: 6 },
-  empty: { textAlign: "center", color: "#666", marginTop: 40, paddingHorizontal: 24 },
-  error: { color: "#c0262d", padding: 16 },
+  meta: { fontSize: 12 },
+  disclaimer: { fontSize: 11, marginTop: 6 },
+  empty: { textAlign: "center", marginTop: 40, paddingHorizontal: 24 },
+  error: { paddingBottom: 12 },
 });

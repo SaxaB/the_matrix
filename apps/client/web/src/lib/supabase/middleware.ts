@@ -84,7 +84,7 @@ export async function updateSession(request: NextRequest) {
 
   if (hasRiskProfile && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = "/hub";
     return NextResponse.redirect(url);
   }
 

@@ -13,8 +13,19 @@
     },
     "android": {
       "package": "com.saxab.thematrix",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
+    "plugins": [
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Matrix usa el micrófono para que hables con saxa.",
+          "speechRecognitionPermission": "Matrix transcribe tu voz para enviársela a saxa.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ]
+    ],
     "extra": {}
   }
 }
