@@ -343,6 +343,9 @@ services:
       FINNHUB_API_KEY: ${FINNHUB_API_KEY:-}
       APIFY_KEYS: ${APIFY_KEYS:-}
       JINA_KEYS: ${JINA_KEYS:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-}
     depends_on:
       db:
         condition: service_healthy

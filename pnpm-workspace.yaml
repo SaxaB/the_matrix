@@ -3,3 +3,4 @@ packages:
   - "apps/client/*"
   - "apps/client/sections/*"
   - "packages/*"
+# sections: finance, travel (cada dominio añade el suyo)

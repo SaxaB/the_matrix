@@ -27,6 +27,11 @@ aplicadas en el EQR6** (cambios nuevos = migración nueva).
 - `0004_agent.sql` — schema `agent` del runtime saxa: `llm_spend` (presupuesto §5ter.2), `loop_runs` (§5quater), `approvals` (HITL §8.2); solo service_role
 - `0005_finance_portfolio.sql` — gestor de cartera §9bis: `cash_balances`, `portfolio_operations`, `trade_plans` (escribe el agente, lee el grupo; publicar es decisión humana)
 - `0006_radar.sql` — radar semanal §9bis.3: `radar_runs`, `radar_candidates` (lista rankeada con plan preliminar enlazado)
+- `0007_knowledge.sql` — memoria §9bis.5: `knowledge_pages` (wiki viva por ticker/tema/tesis) + `market_events` (episódica). Las tablas de checkpoints de LangGraph las crea el propio runtime en el schema `agent`.
+- `0008_chat.sql` — canal C3 §14.6: `chat.messages` (Postgres como bus; cliente inserta `pending`, saxa responde, Realtime push) + publicación `supabase_realtime` (chat.messages, finance.trade_plans)
+- `0009_vault.sql` — P9 §14.9 (solo metadatos, independiente de la decisión #10): `vault.documents` con taxonomía, caducidades y RLS de un solo usuario
+- `0010_travel.sql` — P4 §14.7: `travel.tm47_profile` (autofill), `travel.entries` (entradas a TH), `travel.tm47_reports` (ciclo del 90-day report con aprobación HITL). RLS un solo usuario; la contraseña del portal va en `secrets.env`, no aquí
+- `0011_chat_approvals.sql` — `chat.messages.metadata` para tarjetas de aprobación (captura + Aprobar/Rechazar) sin exponer el schema `agent` a clientes
 
 ### Aplicar
 

@@ -12,10 +12,37 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, TypedDict
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, StateGraph
+
+log = logging.getLogger("saxa.decision")
+
+
+def build_checkpointer(database_url: str | None):
+    """Checkpointer Postgres si hay BD (sobrevive reinicios entre /decidir y
+    /aprobar); fallback a memoria para tests/dry-run. Las tablas de langgraph
+    viven en el schema `agent` (search_path)."""
+    if not database_url:
+        return InMemorySaver()
+    try:
+        from psycopg import Connection
+        from langgraph.checkpoint.postgres import PostgresSaver
+
+        conn = Connection.connect(
+            database_url,
+            autocommit=True,
+            prepare_threshold=0,
+            options="-c search_path=agent,public",
+        )
+        saver = PostgresSaver(conn)
+        saver.setup()
+        return saver
+    except Exception as e:  # noqa: BLE001 — degradación declarada, no silenciosa
+        log.warning("checkpointer Postgres no disponible (%s); usando memoria", e)
+        return InMemorySaver()
 
 from ...core.budget import BudgetTracker
 from ...core.llm import LlmClient
@@ -97,11 +124,29 @@ class DecisionGraph:
         return {"market_data": data}
 
     def _historical_context(self, state: DecisionState) -> DecisionState:
-        # knowledge_pages (LLM Wiki) llega en F6; mientras tanto, omisión declarada
+        """Recupera la página de conocimiento del ticker (LLM Wiki, §9bis.5)."""
+        from .wiki import get_page, ticker_slug
+
+        try:
+            page = get_page(self._pool, ticker_slug(state["ticker"]))
+        except Exception as e:  # noqa: BLE001 — omisión declarada, no inventada
+            return {"historical_context": {"omitted": True, "reason": f"wiki inaccesible: {e}"}}
+        if page is None:
+            return {
+                "historical_context": {
+                    "omitted": True,
+                    "reason": f"sin página de conocimiento para {state['ticker']} todavía",
+                }
+            }
         return {
             "historical_context": {
-                "omitted": True,
-                "reason": "knowledge_pages no construido aún (F6); sin contexto histórico",
+                "slug": page.slug,
+                "title": page.title,
+                "content_md": page.content_md,
+                "confidence": page.confidence,
+                "drivers": page.drivers,
+                "open_questions": page.open_questions,
+                "version": page.version,
             }
         }
 

@@ -1,0 +1,21 @@
+{
+  "name": "@matrix/section-travel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sección Travel (P4): TM47 90-day report — queries y lógica de fechas, sin UI",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@matrix/client-shared": "workspace:*",
+    "@matrix/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.103.0",
+    "typescript": "^5.8.0"
+  }
+}

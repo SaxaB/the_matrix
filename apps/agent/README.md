@@ -61,12 +61,31 @@ omitida (F5, scraping serenitymarkets vía §7bis).
 | Comandos HITL Telegram | gateway | `/decidir TICKER [pregunta]`, `/planes`, `/aprobar <id>`, `/rechazar <id>` |
 | `carpatos` | `saxa.tools.carpatos` | transcript del último vídeo de @JoseLuisCarpatos vía yt-dlp (gratis); ya no hay fuentes pendientes en el briefing |
 
+## F6 — añadido
+
+| Pieza | Módulo | Notas |
+|---|---|---|
+| LLM Wiki (§9bis.5) | `saxa.domains.finance.wiki` + migración `0007_knowledge` | páginas vivas por ticker/tema/tesis que se ACTUALIZAN; compactación nocturna desde `market_events` (`saxa compact`) |
+| historical_context real | grafo de decisión | lee la página del ticker; sin página = omisión declarada |
+| Checkpointer Postgres | `decision.build_checkpointer` | el thread /decidir→/aprobar sobrevive reinicios; sin BD degrada a memoria avisando |
+| Observabilidad | `saxa.core.observability.ObservedLlmClient` | trazas a Langfuse si hay `LANGFUSE_*` (extra `saxa[observability]`); no-op sin credenciales |
+| Evals como gate | `evals/run_evals.py` + `evals/golden/*.yaml` | golden set de fallos reales (pre-market 2026-05-15, MU 2026-05-27, ~ del 2026-05-22, REGLA #19, prompt injection); exit code para CI |
+
+## Canales (diseño §6, §14.6)
+
+Telegram (C1) y el chat propio de la app móvil (C3) hablan con **el mismo Hermes**
+vía `handle_message(text, sender)` — comandos y routing multi-dominio viven en el
+orquestador, no en cada gateway. Por eso `/aprobar`, `/tm47`, `/decidir` y las
+**tarjetas de aprobación** funcionan idénticas en ambos.
+
+- **Telegram (C1)**: grupo de finanzas. Se mantiene.
+- **Chat C3 (móvil)**: canal personal — finanzas, vault, travel + aprobaciones.
+  Sustituye a Telegram para tu uso privado (no mezcla con el grupo).
+
 ## Pendiente (fases siguientes)
 
-- F6: Langfuse (atribución por span) + evals como gate + `knowledge_pages` (el nodo
-  historical_context del grafo hoy declara omisión) + checkpointer Postgres de LangGraph
-  (hoy InMemorySaver: un reinicio entre /decidir y /aprobar pierde el thread; el plan
-  queda en `gated` y se relanza).
+- F7: matriz de autonomía formal por acción + pulido (cierra P1).
 - Registro de `loop_runs` en Postgres al ejecutar loops (hoy solo en memoria/logs).
+- Langfuse self-host en compose (fase 2 de infra; la instrumentación ya está).
 - Validación en vivo (EQR6): `saxa check` contra stack real, briefing end-to-end,
-  radar sobre universo real.
+  radar sobre universo real, checkpointer contra Postgres real.

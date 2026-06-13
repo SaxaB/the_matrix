@@ -15,6 +15,175 @@ export type Json =
   | Json[];
 
 export interface Database {
+  vault: {
+    Tables: {
+      documents: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          doc_type:
+            | "identity"
+            | "immigration"
+            | "health"
+            | "insurance"
+            | "contract"
+            | "tax"
+            | "other";
+          holder: string | null;
+          country: string | null;
+          issuer: string | null;
+          doc_number_last4: string | null;
+          issue_date: string | null;
+          expiry_date: string | null;
+          tags: string[];
+          notes: string | null;
+          storage_backend: string | null;
+          storage_ref: string | null;
+          status: "active" | "archived" | "deleted";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          doc_type:
+            | "identity"
+            | "immigration"
+            | "health"
+            | "insurance"
+            | "contract"
+            | "tax"
+            | "other";
+          holder?: string | null;
+          country?: string | null;
+          issuer?: string | null;
+          doc_number_last4?: string | null;
+          issue_date?: string | null;
+          expiry_date?: string | null;
+          tags?: string[];
+          notes?: string | null;
+          storage_backend?: string | null;
+          storage_ref?: string | null;
+          status?: "active" | "archived" | "deleted";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          doc_type?:
+            | "identity"
+            | "immigration"
+            | "health"
+            | "insurance"
+            | "contract"
+            | "tax"
+            | "other";
+          holder?: string | null;
+          country?: string | null;
+          issuer?: string | null;
+          doc_number_last4?: string | null;
+          issue_date?: string | null;
+          expiry_date?: string | null;
+          tags?: string[];
+          notes?: string | null;
+          status?: "active" | "archived" | "deleted";
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+  travel: {
+    Tables: {
+      tm47_reports: {
+        Row: {
+          id: string;
+          user_id: string;
+          due_date: string | null;
+          filed_date: string | null;
+          channel: "online" | "in_person";
+          status:
+            | "scheduled"
+            | "preparing"
+            | "awaiting_approval"
+            | "submitted"
+            | "approved"
+            | "rejected"
+            | "in_person"
+            | "cancelled";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          due_date?: string | null;
+          filed_date?: string | null;
+          channel?: "online" | "in_person";
+          status?: string;
+          created_at?: string;
+        };
+        Update: {
+          status?: string;
+          filed_date?: string | null;
+          due_date?: string | null;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+  chat: {
+    Tables: {
+      messages: {
+        Row: {
+          id: string;
+          user_id: string;
+          role: "user" | "assistant";
+          content: string;
+          domain: string | null;
+          status: "pending" | "processing" | "done" | "error";
+          error: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          role: "user" | "assistant";
+          content: string;
+          domain?: string | null;
+          status?: "pending" | "processing" | "done" | "error";
+          error?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          role?: "user" | "assistant";
+          content?: string;
+          domain?: string | null;
+          status?: "pending" | "processing" | "done" | "error";
+          error?: string | null;
+          metadata?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
   market: {
     Tables: {
       us_symbols: {

@@ -97,32 +97,13 @@ class TelegramGateway:
 
         sender = str((message.get("from") or {}).get("username")
                      or (message.get("from") or {}).get("id") or "desconocido")
-        command_reply = await self._maybe_command(text, sender)
-        reply = command_reply or await self._hermes.handle_message(text)
+        # Comandos y routing viven en Hermes: comunes a Telegram y chat (C3).
+        reply = await self._hermes.handle_message(text, sender=sender)
         log.info(
             "respuesta chat=%s ok=%s stop=%s coste=%.4f USD",
             chat_id, reply.ok, reply.stop_reason, reply.cost_usd,
         )
         await self.send(client, chat_id, reply.text)
-
-    async def _maybe_command(self, text: str, sender: str):
-        """Comandos HITL del grafo de decisión (§9bis.4 / §8.2). None si no aplica."""
-        if not text.startswith("/"):
-            return None
-        parts = text.split()
-        cmd = parts[0].split("@")[0].lower()
-        if cmd == "/decidir" and len(parts) >= 2:
-            ticker = parts[1]
-            question = " ".join(parts[2:]) or f"¿Entramos en {ticker.upper()}?"
-            return await self._hermes.start_decision(ticker, question)
-        if cmd == "/planes":
-            return await self._hermes.list_pending_approvals()
-        if cmd in ("/aprobar", "/rechazar") and len(parts) >= 2:
-            decision = "approved" if cmd == "/aprobar" else "rejected"
-            return await self._hermes.decide_approval(parts[1], decision, sender)
-        if cmd in ("/decidir", "/aprobar", "/rechazar"):
-            return None  # sintaxis incompleta: que conteste Hermes normal
-        return None
 
     async def send(self, client: httpx.AsyncClient, chat_id: int, text: str) -> None:
         for chunk in chunk_message(text):

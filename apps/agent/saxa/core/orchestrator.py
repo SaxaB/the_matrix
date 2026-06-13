@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -66,14 +67,34 @@ class Hermes:
         self._pool = pool
         self._decision_graph = None  # perezoso: langgraph solo si se usa
 
+    # ------------------------- comandos (todos los canales) -------------------------
+
+    async def _handle_command(self, text: str, sender: str) -> "Reply | None":
+        """Comandos slash compartidos por Telegram y chat. None si no aplica."""
+        parts = text.split()
+        cmd = parts[0].split("@")[0].lower()
+        if cmd == "/decidir" and len(parts) >= 2:
+            ticker = parts[1]
+            question = " ".join(parts[2:]) or f"¿Entramos en {ticker.upper()}?"
+            return await self.start_decision(ticker, question)
+        if cmd == "/planes":
+            return await self.list_pending_approvals()
+        if cmd == "/tm47":
+            return await self.tm47_status()
+        if cmd in ("/aprobar", "/rechazar") and len(parts) >= 2:
+            decision = "approved" if cmd == "/aprobar" else "rejected"
+            return await self.decide_approval(parts[1], decision, sender)
+        return None
+
     # ------------------------- decisión HITL (§9bis.4) -------------------------
 
     def _get_decision_graph(self):
         if self._decision_graph is None:
-            from ..domains.finance.decision import DecisionGraph
+            from ..domains.finance.decision import DecisionGraph, build_checkpointer
 
             self._decision_graph = DecisionGraph(
-                self._pool, self._llm, self._router, self._budget
+                self._pool, self._llm, self._router, self._budget,
+                checkpointer=build_checkpointer(self._settings.database_url),
             )
         return self._decision_graph
 
@@ -99,7 +120,11 @@ class Hermes:
 
     async def decide_approval(self, approval_prefix: str, decision: str,
                               decided_by: str) -> Reply:
-        """/aprobar | /rechazar: aplica la decisión humana y completa el grafo."""
+        """/aprobar | /rechazar: despacha por action_kind (multi-dominio §14.3).
+
+        - trade_plan_publish → resume del grafo de decisión (finanzas)
+        - tm47_submit        → envío del 90-day report (travel) tras aprobar
+        """
         row = await asyncio.to_thread(self._find_pending_approval, approval_prefix)
         if row is None:
             return Reply(
@@ -107,6 +132,15 @@ class Hermes:
                 False, "not_found", [], 0.0,
             )
         approval_id, payload = row
+        action_kind = payload.get("action_kind") or (
+            "trade_plan_publish" if "thread_id" in payload else "unknown"
+        )
+
+        if action_kind == "tm47_submit":
+            return await self._decide_tm47(approval_id, payload, decision, decided_by)
+        return await self._decide_trade_plan(approval_id, payload, decision, decided_by)
+
+    async def _decide_trade_plan(self, approval_id, payload, decision, decided_by) -> Reply:
         thread_id = payload.get("thread_id")
         try:
             state = await asyncio.to_thread(
@@ -114,9 +148,7 @@ class Hermes:
             )
         except Exception as e:  # noqa: BLE001
             return Reply(
-                f"⚠️ No he podido aplicar la decisión sobre <code>{approval_id[:8]}</code>: {e}. "
-                f"Si el agente se reinició entre medias, relanza con /decidir "
-                f"(checkpointer persistente pendiente, F6).",
+                f"⚠️ No he podido aplicar la decisión sobre <code>{approval_id[:8]}</code>: {e}.",
                 False, "error", [], 0.0,
             )
         verbo = "aprobado y publicado" if decision == "approved" else "rechazado"
@@ -125,6 +157,56 @@ class Hermes:
             f"(estado final: {state.get('final_status')}).",
             True, "decided", [], 0.0,
         )
+
+    async def _decide_tm47(self, approval_id, payload, decision, decided_by) -> Reply:
+        await asyncio.to_thread(self._close_approval, approval_id, decision, decided_by)
+        if decision != "approved":
+            await asyncio.to_thread(
+                self._set_report_status, payload.get("report_id"), "cancelled"
+            )
+            return Reply("90-day report <b>rechazado</b>; no se ha enviado nada.",
+                         True, "decided", [], 0.0)
+        # Aprobado: enviar de verdad (browser en el EQR6)
+        from ..domains.travel.browser import Tm47Browser
+        from ..domains.travel.service import submit_report
+
+        email = os.environ.get("TM47_PORTAL_EMAIL", "")
+        password = os.environ.get("TM47_PORTAL_PASSWORD", "")
+        try:
+            result = await submit_report(
+                self._pool, payload, lambda: Tm47Browser(), email, password
+            )
+        except Exception as e:  # noqa: BLE001 — fallo honesto, no se finge envío
+            return Reply(
+                f"⚠️ Aprobado, pero el envío al portal falló: {e}. "
+                f"El report queda pendiente; reintenta cuando el portal esté accesible.",
+                False, "error", [], 0.0,
+            )
+        return Reply(
+            f"✅ 90-day report <b>enviado</b> (report {result['report_id'][:8]}). "
+            f"Te aviso cuando el portal lo marque aprobado.",
+            True, "decided", [], 0.0,
+        )
+
+    def _close_approval(self, approval_id: str, decision: str, decided_by: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """
+                update agent.approvals
+                set decided_at = now(), decision = %s, decided_by = %s
+                where id = %s
+                """,
+                (decision, decided_by, approval_id),
+            )
+
+    def _set_report_status(self, report_id: str | None, status: str) -> None:
+        if not report_id:
+            return
+        with self._pool.connection() as conn:
+            conn.execute(
+                "update travel.tm47_reports set status = %s where id = %s",
+                (status, report_id),
+            )
 
     def _find_pending_approval(self, prefix: str):
         with self._pool.connection() as conn:
@@ -140,6 +222,21 @@ class Hermes:
             return None
         payload = row[1] if isinstance(row[1], dict) else json.loads(row[1])
         return row[0], payload
+
+    async def tm47_status(self) -> Reply:
+        """/tm47: estado del 90-day report (próximo vencimiento / ventana)."""
+        from ..domains.travel.service import check_due
+
+        try:
+            result = await asyncio.to_thread(check_due, self._pool)
+        except Exception as e:  # noqa: BLE001
+            return Reply(f"⚠️ No pude consultar el TM47: {e}", False, "error", [], 0.0)
+        if not result.get("known"):
+            return Reply(
+                "Aún no hay datos del TM47 (sube tu perfil y la última entrada/aprobado).",
+                True, "done", [], 0.0,
+            )
+        return Reply(result["summary"], True, "done", [], 0.0)
 
     async def list_pending_approvals(self) -> Reply:
         def _query():
@@ -163,8 +260,30 @@ class Hermes:
             True, "done", [], 0.0,
         )
 
-    async def handle_message(self, text: str) -> Reply:
-        """Punto de entrada del gateway. Hoy un solo dominio: finanzas."""
+    async def handle_message(self, text: str, sender: str = "user") -> Reply:
+        """Punto de entrada de TODOS los canales (Telegram C1, chat C3).
+
+        Orden: comandos slash → routing multi-dominio (§14.4: vault por
+        keywords primero, resto a finanzas). Al estar aquí (no en el gateway),
+        los comandos y las tarjetas de aprobación funcionan en cualquier canal.
+        """
+        if text.startswith("/"):
+            command_reply = await self._handle_command(text, sender)
+            if command_reply is not None:
+                return command_reply
+
+        from ..domains.vault.handler import handle_vault_query, is_vault_question
+
+        if is_vault_question(text):
+            try:
+                reply_text = await asyncio.to_thread(
+                    handle_vault_query, self._pool, self._llm, self._router,
+                    self._budget, text,
+                )
+                return Reply(reply_text, True, "done", [], 0.0)
+            except Exception as e:  # noqa: BLE001 — fallo honesto
+                return Reply(f"⚠️ Vault no disponible: {e}", False, "error", [], 0.0)
+
         intent = await asyncio.to_thread(
             finance_intent.detect_intent, text, self._llm, self._router, self._budget
         )

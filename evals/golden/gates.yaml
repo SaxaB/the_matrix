@@ -1,0 +1,67 @@
+# Golden set de gates (diseño §8: "evals como gate en CI").
+# Casos derivados de fallos REALES documentados en financial-freedom.
+# Cada caso es determinista: corre contra el código de los gates, sin LLM ni red.
+
+cases:
+  # --- source_gate: briefings sin cobertura (familia del bug pre-market 2026-05-15) ---
+  - id: briefing-sin-fuentes-bloqueado
+    gate: source_gate
+    description: "Un briefing completo sin bloque de fuentes NO sale (pre-market 2026-05-15)"
+    input: |
+      Briefing completo de mercado: SPX +0.8%, Nasdaq +1.2%. NVDA lidera.
+      Todo apunta a continuación alcista.
+    expect:
+      ok: false
+      gated: true
+
+  - id: briefing-con-cobertura-pasa
+    gate: source_gate
+    description: "Briefing con todas las fuentes declaradas (o su omisión) sí sale"
+    input: |
+      Briefing completo de mercado.
+      Cartera (step 0): NVDA 40%, MU 20%. Cárpatos: sin sesión hoy.
+      Sectorial US: tech lidera. Cross-asset: dólar plano, crudo -1%, oro estable, bonos sin cambios.
+      Noticias por ticker: NVDA resultados el jueves.
+      X stonks: omitido (sin datos). Reddit retail: omitido (bloqueo). Citrini Substack: omitido (sin posts).
+      Fuentes consultadas / omitidas: las de arriba.
+    expect:
+      ok: true
+      gated: true
+
+  - id: mensaje-casual-no-gatea
+    gate: source_gate
+    description: "Una mención casual de mercado no dispara el gate (bug-2026-06-01-04)"
+    input: "NVDA ha presentado resultados esta tarde, luego os cuento"
+    expect:
+      gated: false
+
+  # --- valuation_gate: el incidente MU 2026-05-27 ---
+  - id: fair-value-sin-fuente-bloqueado
+    gate: source_gate
+    description: "Claim de fair value con cifras sin tool ejecutada se bloquea (MU 2026-05-27)"
+    input: "El fair value de MU me sale en $120, es compra clara a estos precios"
+    expect:
+      ok: false
+      gate_name: valuation_claims
+
+  - id: fair-value-con-fuente-pasa
+    gate: source_gate
+    description: "El mismo claim citando dcf_manual.py pasa"
+    input: "Según dcf_manual.py, fair value de MU $120 (escenario base, WACC 9%)"
+    expect:
+      gate_name_not: valuation_claims
+
+  # --- telegram_md_lint: el bug del 2026-05-22 ---
+  - id: tilde-sin-escapar-detectada
+    gate: telegram_md_lint
+    description: "El ~ sin escapar que rompió el envío del 2026-05-22 se detecta antes de la red"
+    input: "*Mercado (~4h sesion US)*"
+    expect:
+      issues_min: 1
+
+  - id: markdown-limpio-pasa
+    gate: telegram_md_lint
+    description: "MarkdownV2 correcto no produce falsos positivos"
+    input: "hola *mundo* con `codigo` y _enfasis_"
+    expect:
+      issues_max: 0

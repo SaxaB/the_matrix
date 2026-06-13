@@ -16,6 +16,12 @@ importers:
       '@matrix/section-finance':
         specifier: workspace:*
         version: link:../sections/finance
+      '@matrix/section-travel':
+        specifier: workspace:*
+        version: link:../sections/travel
+      '@matrix/section-vault':
+        specifier: workspace:*
+        version: link:../sections/vault
       '@react-native-async-storage/async-storage':
         specifier: ^2.2.0
         version: 2.2.0(react-native@0.85.3(@babel/core@7.29.7)(@types/react@19.2.17)(react@19.2.3))
@@ -75,6 +81,38 @@ importers:
       typescript:
         specifier: ^5.8.0
         version: 5.9.3
+
+  apps/client/sections/travel:
+    dependencies:
+      '@matrix/client-shared':
+        specifier: workspace:*
+        version: link:../../shared
+      '@matrix/db':
+        specifier: workspace:*
+        version: link:../../../../packages/db
+    devDependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.103.0
+        version: 2.108.1
+      typescript:
+        specifier: ^5.8.0
+        version: 5.8.3
+
+  apps/client/sections/vault:
+    dependencies:
+      '@matrix/client-shared':
+        specifier: workspace:*
+        version: link:../../shared
+      '@matrix/db':
+        specifier: workspace:*
+        version: link:../../../../packages/db
+    devDependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.103.0
+        version: 2.108.1
+      typescript:
+        specifier: ^5.8.0
+        version: 5.8.3
 
   apps/client/shared:
     dependencies:

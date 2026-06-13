@@ -22,17 +22,37 @@ from .gateway.telegram import TelegramGateway
 
 
 def build_hermes(settings: Settings) -> Hermes:
+    from .core.observability import ObservedLlmClient
+
     pool = get_pool(settings.database_url)
     router = ModelRouter(settings.models_config)
-    llm = build_default_client(settings.anthropic_api_key)
+    llm = ObservedLlmClient(build_default_client(settings.anthropic_api_key))
     budget = BudgetTracker(settings.daily_budget_usd, PostgresSpendStore(pool))
     return Hermes(settings, router, llm, budget, pool)
 
 
 def cmd_run(settings: Settings) -> int:
+    """Arranca los canales: Telegram (grupo, C1) + chat personal (C3).
+
+    Cada canal es opcional según config; ambos hablan con el mismo Hermes (§6).
+    """
+    from .gateway.chat import ChatChannel
+
     hermes = build_hermes(settings)
-    gateway = TelegramGateway(settings.telegram_bot_token, hermes)
-    asyncio.run(gateway.run_forever())
+    channels = []
+    if settings.telegram_bot_token:
+        channels.append(TelegramGateway(settings.telegram_bot_token, hermes).run_forever())
+    if settings.database_url:
+        pool = get_pool(settings.database_url)
+        channels.append(ChatChannel(pool, hermes).run_forever())
+    if not channels:
+        print("Sin canales configurados (ni TELEGRAM_BOT_TOKEN ni DATABASE_URL)")
+        return 1
+
+    async def _run_all():
+        await asyncio.gather(*channels)
+
+    asyncio.run(_run_all())
     return 0
 
 
@@ -41,6 +61,21 @@ def cmd_briefing(settings: Settings) -> int:
     reply = asyncio.run(hermes.run_briefing())
     print(reply.text)
     return 0 if reply.ok else 1
+
+
+def cmd_compact(settings: Settings) -> int:
+    """Compactación nocturna de la wiki (§9bis.5): disparo n8n o manual."""
+    from .core.observability import ObservedLlmClient
+    from .domains.finance.wiki import compact_portfolio_pages
+
+    pool = get_pool(settings.database_url)
+    router = ModelRouter(settings.models_config)
+    llm = ObservedLlmClient(build_default_client(settings.anthropic_api_key))
+    budget = BudgetTracker(settings.daily_budget_usd, PostgresSpendStore(pool))
+    result = compact_portfolio_pages(pool, llm, router, budget)
+    print(f"Compactadas: {', '.join(result['compacted']) or 'ninguna'}")
+    print(f"Sin eventos nuevos: {', '.join(result['skipped_no_events']) or 'ninguna'}")
+    return 0
 
 
 def cmd_radar(settings: Settings) -> int:
@@ -89,7 +124,7 @@ def main() -> int:
         level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
     )
     parser = argparse.ArgumentParser(prog="saxa")
-    parser.add_argument("command", choices=["run", "briefing", "radar", "check"])
+    parser.add_argument("command", choices=["run", "briefing", "radar", "compact", "check"])
     args = parser.parse_args()
 
     settings = load_settings()
@@ -99,6 +134,8 @@ def main() -> int:
         return cmd_briefing(settings)
     if args.command == "radar":
         return cmd_radar(settings)
+    if args.command == "compact":
+        return cmd_compact(settings)
     return cmd_check(settings)
 
 

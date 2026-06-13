@@ -1,0 +1,21 @@
+{
+  "name": "@matrix/section-vault",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sección Vault (P9): documentos personales — queries de metadatos, sin UI",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@matrix/client-shared": "workspace:*",
+    "@matrix/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.103.0",
+    "typescript": "^5.8.0"
+  }
+}

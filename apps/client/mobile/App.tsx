@@ -11,9 +11,12 @@ import { StatusBar } from "expo-status-bar";
 import { Text } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./src/supabase";
+import { ChatScreen } from "./src/screens/ChatScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { PortfolioScreen } from "./src/screens/PortfolioScreen";
 import { TradePlansScreen } from "./src/screens/TradePlansScreen";
+import { TravelScreen } from "./src/screens/TravelScreen";
+import { VaultScreen } from "./src/screens/VaultScreen";
 import { SettingsScreen } from "./src/screens/SettingsScreen";
 
 const Tab = createBottomTabNavigator();
@@ -54,6 +57,23 @@ export default function App() {
             component={TradePlansScreen}
             options={{ tabBarIcon: () => <TabIcon glyph="🧭" /> }}
           />
+          <Tab.Screen
+            name="90-day"
+            component={TravelScreen}
+            options={{ tabBarIcon: () => <TabIcon glyph="🛂" /> }}
+          />
+          <Tab.Screen
+            name="Docs"
+            options={{ tabBarIcon: () => <TabIcon glyph="🗂️" /> }}
+          >
+            {() => <VaultScreen userId={session.user.id} />}
+          </Tab.Screen>
+          <Tab.Screen
+            name="Chat"
+            options={{ tabBarIcon: () => <TabIcon glyph="💬" /> }}
+          >
+            {() => <ChatScreen userId={session.user.id} />}
+          </Tab.Screen>
           <Tab.Screen
             name="Ajustes"
             options={{ tabBarIcon: () => <TabIcon glyph="⚙️" /> }}
